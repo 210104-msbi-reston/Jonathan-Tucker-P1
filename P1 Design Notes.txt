@@ -1,0 +1,106 @@
+Project 1: Design and Notes | Due Week 5 - February 2nd
+Objective: Create a database that tracks the creation of and transaction history of Apple products across the world.
+		   Maintain the data for Apple and make sure every ascpect of business is recorded well and can be tracked.
+-----------------------------------------------------------------------------		   
+Product Flow
+-----------------------------------------------------------------------------
+Production House => Warehouse => Distributor => Sub Distributor => Channel Partner => Zone => Store => Customer
+
+Continent -> 3 Production Houses
+
+Country -> 4 Warehouses
+		-> 1 General Distributor
+		-> Many Sub Distributors
+		
+Channel Partner -> Many Zones
+				-> Many Stores
+-----------------------------------------------------------------------------				
+Price Increase
+-----------------------------------------------------------------------------
+Production House -> Warehouse : No Price Increase
+Warehouse -> General Distributor : 8% Price Increase
+General Distributor -> Sub Distributor : 8% Price Increase
+Sub Distributor -> Channel Partner : 8% Price Increase
+Channel Partner -> Store: 8% Price Increase
+Store -> Customer : 8% Price Increase
+
+From Production to Customer, there is a 40% total price increase.
+-----------------------------------------------------------------------------
+Customer Data
+-----------------------------------------------------------------------------
+When a sale is made at the Store level, data is gathered about Customers.
+
+Unique ID: SSN, Passport No, Citizen ID No, etc.
+Name: First and Last
+Phone Number: (xxx)xxx-xxxx
+Email Address
+Street
+City
+State(if applicable)
+Zip Code
+Country
+
+-----------------------------------------------------------------------------
+Entities
+-----------------------------------------------------------------------------
+Production House
+	-ProductionHouseID
+	-Continent
+Warehouse
+	-WarehouseID
+	-ProductionHouseID (to signify where its products come from)
+	-Country
+General Distributor
+	-GenDistributorID
+	-Warehouse ID (to signify where it got its products)
+	-Country
+Sub Distributor
+	-SubDistributorID
+	-GenDistributorID (to signify where its products come from)
+Channel Partner
+	-ChannelID
+	-SubDistributorID
+Zone
+	-ZoneID
+	-ChannelID
+Store
+	-StoreID
+	-ZoneID
+Customer
+	-CustomerID
+	-FirstName
+	-LastName
+	-Phone Number
+	-Email
+	-Street
+	-City
+	-State
+	-ZipCode
+	-Country
+Product
+	-ProductID
+	-SerialNum
+	-ProductName
+	-ProductType
+	-ProductCategory
+	-Price
+Returns
+	-CaseID
+	-CustomerID
+	-StoreID
+	-Reason
+Orders
+	-OrderID
+	-OrderLevel {GenDis, SubDis, Channel, Store, Customer}
+	-PurchaserID
+	-DateTime
+	-Price
+
+-----------------------------------------------------------------------------
+Queries
+-----------------------------------------------------------------------------
+There will be a list of included queries that anyone along the chain of distribution may use. 
+
+-Total Number of Sales by division. Input the Division you'd like the info from.
+-Order history by division. Input the division.
+-Most ordered item by division.
