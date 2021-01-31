@@ -43,58 +43,80 @@ Country
 -----------------------------------------------------------------------------
 Entities
 -----------------------------------------------------------------------------
+ProductList
+	-productId
+	-productName
+	-productType
+	-productCategory
+	-basePrice
+Continent
+	-continentId
+	-continentName
+Country
+	-countryId
+	-countryName
 Production House
-	-ProductionHouseID
-	-Continent
+	-productionHouseId
+	-continentId
+	-countryId
 Warehouse
-	-WarehouseID
-	-ProductionHouseID (to signify where its products come from)
-	-Country
-General Distributor
-	-GenDistributorID
-	-Warehouse ID (to signify where it got its products)
-	-Country
-Sub Distributor
-	-SubDistributorID
-	-GenDistributorID (to signify where its products come from)
+	-warehouseID
+	-productionHouseID (to signify where its products come from)
+	-countryId
+ProductionInventory
+	-productionInventoryId
+	-itemId
+	-serialNumber
+	-price
+GenDistributor
+	-genDistributorId
+	-warehouseId
+	-countryId
+GenInventory
+	-genInventoryId
+	-genDistributorId
+	-productId
+	-serialNumber
+	-price
+SubDistributor
+	-subDistributorId
+	-genDistributorId
+SubInventory
+	-subInventoryId
+	-subDistributorId
+	-productId
+	-serialNumber
+	-price
 Channel Partner
-	-ChannelID
-	-SubDistributorID
+	-channelId
+	-subDistributorId
 Zone
-	-ZoneID
-	-ChannelID
+	-zoneId
+	-channelId
+	-countryId
 Store
-	-StoreID
-	-ZoneID
+	-storeId
+	-zoneId
+StoreInventory
+	-storeInventoryId
+	-storeId
+	-productId
+	-serialNumber
+	-price
 Customer
 	-CustomerID
 	-FirstName
 	-LastName
 	-Phone Number
 	-Email
-	-Street
 	-City
 	-State
 	-ZipCode
 	-Country
-Product
-	-ProductID
-	-SerialNum
-	-ProductName
-	-ProductType
-	-ProductCategory
-	-Price
-Returns
-	-CaseID
-	-CustomerID
-	-StoreID
-	-Reason
-Orders
-	-OrderID
-	-OrderLevel {GenDis, SubDis, Channel, Store, Customer}
-	-PurchaserID
-	-DateTime
-	-Price
+
+-----------------------------------------------------------------------------
+Triggers
+-----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
 Queries
