@@ -55,38 +55,53 @@ Continent
 Country
 	-countryId
 	-countryName
-Production House
+	-continentId
+ProductionHouse
 	-productionHouseId
 	-continentId
-	-countryId
 Warehouse
 	-warehouseID
-	-productionHouseID (to signify where its products come from)
 	-countryId
 ProductionInventory
-	-productionInventoryId
-	-itemId
 	-serialNumber
-	-price
-GenDistributor
-	-genDistributorId
-	-warehouseId
-	-countryId
-GenInventory
-	-genInventoryId
-	-genDistributorId
 	-productId
+	-warehouseId
+GeneralDistributor
+	-generalDistributorId
+	-countryId
+GeneralInventory
 	-serialNumber
+	-productId
+	-generalDistributorId
 	-price
+GeneralDistributorPurchases
+	-purchaseId
+	-generalDistributorId
+	-warehouseId
+	-serialNumber
+	-dateOfPurchase
+GeneralDistributorSales
+	-saleId
+	-generalDistributorId
+	-subDistributorId
+	-serialNumber
+	-dateOfSales
 SubDistributor
 	-subDistributorId
-	-genDistributorId
-SubInventory
-	-subInventoryId
-	-subDistributorId
-	-productId
+	-generalDistributorId
+SubDistributorInventory
 	-serialNumber
+	-productId
+	-subDistributorId
 	-price
+SubDistributorPurhcases
+	-purchaseId
+	-subDistributorId
+	-generalDistributorId
+	-serialNumber
+	-dateOfPurchase
+SubDistributorSales
+	-
 Channel Partner
 	-channelId
 	-subDistributorId
@@ -110,19 +125,176 @@ Customer
 	-Phone Number
 	-Email
 	-City
-	-State
-	-ZipCode
 	-Country
+ProductionLog
+	-productionLogId
+	-productionHouseId
+	-productId
+	-serialNumber
+	-dateOfProduction
 
+-----------------------------------------------------------------------------
+Views
+-----------------------------------------------------------------------------
+create view ProductionHouseLocations as
+select ProductionHouse.productionHouseId as [Production House], Country.countryName as [Country], Continent.continentName as [Continent]
+from ProductionHouse
+join Country on ProductionHouse.countryId = Country.countryId
+join Continent on Country.continentId = Continent.continentId
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplayProductionLog as
+select ProductionLog.productionLogId as [Log Number],
+		ProductionLog.productionHouseId as [Production House],
+		ProductionInventory.warehouseId as [Warehouse Number],
+		ProductionLog.productId as [Item Number],
+		ProductionLog.serialNumber as [Serial Number],
+		ProductionLog.dateOfProduction as [Date Produced]
+from ProductionLog
+join ProductionInventory on ProductionLog.serialNumber = ProductionInventory.serialNumber;
+
+-----------------------------------------------------------------------------
+Procedures
+-----------------------------------------------------------------------------
+create procedure proc_InitializeWarehouse
+as
+	declare @count int
+	declare @totalCountries int
+	declare @numWarehouses int
+
+	set @totalCountries = (select max(countryId) from Country)
+	set @count = 0;
+	
+
+	while (@count < @totalCountries)
+	begin
+		set @numWarehouses = 0;
+		set @count += 1
+		while (@numWarehouses < 4)
+		begin
+			insert into Warehouse values(@count)
+			set @numWarehouses += 1
+		end
+	end
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
+
+create procedure proc_GenerateProducts @productToProduce int
+as
+	declare @storageWarehouse int
+
+	set @storageWarehouse = (select top 1 warehouseId from Warehouse order by newid())
+
+	insert into ProductionInventory values(@productToProduce, @storageWarehouse)
+
+	select * from ProductionInventory;
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+create procedure proc_GenerateGeneralDistributors
+as
+	declare @totalCountries int
+	declare @count int
+
+	set @totalCountries = (select count(*) from Country);
+	set @count = 0
+
+	while (@count < @totalCountries)
+	begin
+		set @count += 1;
+		insert into GeneralDistributor values(@count);
+	end
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_ProductionToGeneralDistributor @serialNumber bigint
+as
+	declare @warehouse int
+	declare @country int
+	declare @distributor int
+	declare @productNum int
+	declare @price money
+
+	set @warehouse = (select warehouseId from ProductionInventory where serialNumber = @serialNumber)
+	set @country = (select countryId from Warehouse where warehouseId = @warehouse)
+
+	set @distributor = (select generalDistributorId from GeneralDistributor where countryId = @country)
+	set @productNum = (select productId from ProductionInventory where serialNumber = @serialNumber);
+	set @price = (select basePrice from ProductList where productId = @productNum) * 1.08
+
+	insert into GeneralDistributorInventory values(@serialNumber, @productNum, @distributor, @price);
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateSubDistributors
+as
+	declare @totalGenDistributors int
+	declare @count int
+	declare @numSubDistributor int
+
+	set @totalGenDistributors = (select count(*) from GeneralDistributor)
+	set @count = 0;
+
+	while(@count < @totalGenDistributors)
+	begin
+		set @numSubDistributor = 0
+		set @count += 1
+		while(@numSubDistributor < 2)
+		begin
+			insert into SubDistributor values(@count)
+		end
+	end
 -----------------------------------------------------------------------------
 Triggers
 -----------------------------------------------------------------------------
+create trigger trg_LogProductCreation
+on ProductionInventory
+after insert as
+	declare @serialNum int
+	declare @producedAt int
+	declare @storedAt int
+	declare @itemId int
+	declare @continent char(2)
 
------------------------------------------------------------------------------
-Queries
------------------------------------------------------------------------------
-There will be a list of included queries that anyone along the chain of distribution may use. 
+	set @serialNum = (SELECT TOP 1 serialNumber FROM ProductionInventory ORDER BY serialNumber DESC)
+	set @itemId = (SELECT TOP 1 productId FROM ProductionInventory ORDER BY serialNumber DESC)
+	set @storedAt = (SELECT TOP 1 warehouseId FROM ProductionInventory ORDER BY serialNumber DESC)
 
--Total Number of Sales by division. Input the Division you'd like the info from.
--Order history by division. Input the division.
--Most ordered item by division.
+	set @storedAt = (select countryId from Warehouse where warehouseId = @storedAt) 
+	set @continent = (select continentId from Country where countryId = @storedAt)
+	set @producedAt = (select top 1 productionHouseId from ProductionHouse where continentId = @continent order by newid())
+
+	insert into ProductionLog values(@producedAt, @itemId, @serialNum, getdate());
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create trigger trg_LogGeneralDistributorPurchase
+on GeneralDistributorInventory
+after insert as
+	declare @serialNum int
+	declare @generalDistributor int
+	declare @warehouse int
+
+	set @serialNum = (SELECT TOP 1 serialNumber FROM GeneralDistributorInventory ORDER BY serialNumber DESC)
+	set @generalDistributor = (select generalDistributorId from GeneralDistributorInventory where serialNumber = @serialNum)
+	set @warehouse = (select warehouseId from ProductionInventory where serialNumber = @serialNum)
+
+	insert into GeneralDistributorPurchases values(@generalDistributor, @warehouse, @serialNum, getdate())
+	delete from ProductionInventory where serialnumber = @serialNum
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create trigger trg_LogSubDistributorPurchase
+on SubDistributorInventory
+after insert as
+	declare @serialNum bigint
+	declare @subDistributor int
+	declare @generalDistributor int
+
+	set @serialNum = (SELECT TOP 1 serialNumber FROM SubDistributorInventory ORDER BY serialNumber DESC)
+	set @subDistributor = (select subDistributorId from SubDistributorInventory where serialNumber = @serialNum)
+	set @generalDistributor = (select generalDistributorId from GeneralDistributorInventory where serialNumber = @serialNum)
+
+	insert into SubDistributorPurchases values(@subDistributor, @generalDistributor,@serialNum, getdate());
+	delete from GeneralDistributorInventory where serialNumber = @serialNum

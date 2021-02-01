@@ -1,31 +1,38 @@
-﻿Product Name,Product Type,Product Category
-Apple TV,Hardware,Television
-Apple Watch,Hardware,Smartwatch
-Apple Watch SE,Hardware,Smartwatch
-HomePod,Hardware,Assistant
-HomePod Mini,Hardware,Assistant
-iMac,Hardware,Computer
-iMac Pro,Hardware,Computer
-iPad,Hardware,Tablet
-iPad Pro,Hardware,Tablet
-iPad Mini,Hardware,Tablet
-iPad Air,Hardware,Tablet
-iPhone,Hardware,Mobile
-iPhone SE,Hardware,Mobile
-iPod Touch,Hardware,Audio
-Mac Pro,Hardware,Computer
-Mac Mini,Hardware,Computer
-MacBook Air,Hardware,Computer
-MacBook Pro,Hardware,Computer
-AirPods,Accessory,Audio
-AirPods Max,Accessory,Audio
-AirPods Pro,Accessory,Audio
-Apple Pencil,Accessory,Tablet
-Apple Remote,Accessory,Remote
-EarPods,Accessory,Audio
-iPhone Leather Wallet,Accessory,Mobile
-Magic Keyboard,Accessory,Computer
-Magic Keyboard iPad,Accessory,Tablet
-Magic Mouse 2,Accessory,Computer
-Magic Trackpad,Accessory,Computer
-Siri Remote,Accessory,Remote
+﻿productName,productType,productCategory,basePrice
+Apple TV,Hardware,Television,101.4
+Apple Watch,Hardware,Smartwatch,257.99
+Apple Watch SE,Hardware,Smartwatch,161.99
+HomePod,Hardware,Assistant,179.99
+HomePod Mini,Hardware,Assistant,59.4
+iMac,Hardware,Computer,599.6
+iMac Pro,Hardware,Computer,1999.6
+iPad,Hardware,Tablet,257.4
+iPad Pro,Hardware,Tablet,779.4
+iPad Mini,Hardware,Tablet,159.6
+iPad Air,Hardware,Tablet,449.4
+iPhone,Hardware,Mobile,569.4
+iPhone SE,Hardware,Mobile,179.6
+iPod Touch,Hardware,Audio,119.4
+Mac Pro,Hardware,Computer,5279.4
+Mac Mini,Hardware,Computer,359.6
+MacBook Air,Hardware,Computer,749.4
+MacBook Pro,Hardware,Computer,1679.4
+AirPods,Peripheral,Audio,95.4
+AirPods Max,Peripheral,Audio,329.4
+AirPods Pro,Peripheral,Audio,149.4
+Apple Pencil,Peripheral,Tablet,77.4
+Apple Remote,Peripheral,Remote,11.4
+EarPods,Peripheral,Audio,11.4
+iPhone Leather Wallet,Accessory,Mobile,35.4
+Magic Keyboard,Peripheral,Computer,59.4
+Magic Keyboard iPad,Peripheral,Tablet,179.4
+Magic Mouse 2,Peripheral,Computer,47.4
+Magic Trackpad,Peripheral,Computer,77.4
+Siri Remote,Peripheral,Remote,35.4
+Lightning to 3.5mm Adapter,Accessory,Cable,5.4
+USB-C to Lightning Cable,Accessory,Cable,21
+Lightning to USB Cable,Accessory,Cable,11.4
+20W USB-C Power Adapter,Accessory,Cable,11.4
+MagSafe Charger,Accessory,Cable,23.4
+iPhone Smart Battery Case,Accessory,Mobile,77.4
+iPhone Lightning Dock,Accessory,Mobile,29.4
