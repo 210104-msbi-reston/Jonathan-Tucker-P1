@@ -66,6 +66,12 @@ ProductionInventory
 	-serialNumber
 	-productId
 	-warehouseId
+ProductionLog
+	-productionLogId
+	-productionHouseId
+	-productId
+	-serialNumber
+	-dateOfProduction
 GeneralDistributor
 	-generalDistributorId
 	-countryId
@@ -80,12 +86,6 @@ GeneralDistributorPurchases
 	-warehouseId
 	-serialNumber
 	-dateOfPurchase
-GeneralDistributorSales
-	-saleId
-	-generalDistributorId
-	-subDistributorId
-	-serialNumber
-	-dateOfSales
 SubDistributor
 	-subDistributorId
 	-generalDistributorId
@@ -94,30 +94,38 @@ SubDistributorInventory
 	-productId
 	-subDistributorId
 	-price
-SubDistributorPurhcases
+SubDistributorPurchases
 	-purchaseId
 	-subDistributorId
 	-generalDistributorId
 	-serialNumber
 	-dateOfPurchase
-SubDistributorSales
-	-
 Channel Partner
-	-channelId
+	-channelPartnerId
 	-subDistributorId
 Zone
 	-zoneId
-	-channelId
-	-countryId
+	-channelPartnerId
 Store
 	-storeId
 	-zoneId
 StoreInventory
-	-storeInventoryId
-	-storeId
-	-productId
 	-serialNumber
+	-storeId
 	-price
+ChannelZoneStoreTransactions
+	-transactionId
+	-channelPartnerId
+	-zoneId
+	-storeId
+	-serialnumber
+	-dateOfTransaction
+StoreTransactions
+	-transactionId
+	-storeId
+	-customerId
+	-serialnumber
+	-dateOfTransaction
 Customer
 	-CustomerID
 	-FirstName
@@ -126,12 +134,6 @@ Customer
 	-Email
 	-City
 	-Country
-ProductionLog
-	-productionLogId
-	-productionHouseId
-	-productId
-	-serialNumber
-	-dateOfProduction
 
 -----------------------------------------------------------------------------
 Views
@@ -232,17 +234,87 @@ as
 	declare @totalGenDistributors int
 	declare @count int
 	declare @numSubDistributor int
+	declare @idNum int
 
 	set @totalGenDistributors = (select count(*) from GeneralDistributor)
-	set @count = 0;
+	set @count = 0
+	set @idNum = 200
 
 	while(@count < @totalGenDistributors)
 	begin
 		set @numSubDistributor = 0
 		set @count += 1
+		set @idNum += 1
 		while(@numSubDistributor < 2)
 		begin
-			insert into SubDistributor values(@count)
+			insert into SubDistributor values(@idNum)
+			set @numSubDistributor += 1
+		end
+	end
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
+	
+create procedure proc_GeneralDistributorToSubDistributor @serialNum bigint
+as
+	declare @generalDistributor int
+	declare @subDistributor int
+	declare @productNum int
+	declare @price money
+
+	set @generalDistributor = (select generalDistributorId from GeneralDistributorInventory where serialNumber = @serialNum)
+	set @subDistributor = (select top 1 subDistributorId from SubDistributor where generalDistributorId = @generalDistributor order by newid())
+	set @productNum = (select productId from ProductionLog where serialNumber = @serialnum)
+	set @price = (select generalDistributorPrice from GeneralDistributorInventory where serialNumber = @serialNum) * 1.08
+
+	insert into SubDistributorInventory values(@serialNum, @productNum, @subDistributor, @price)
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
+
+create procedure proc_GenerateChannelPartners
+as
+	declare @count int
+	declare @totalSubDistributors int
+	declare @numChannels int
+	declare @idNum int
+
+	set @totalSubDistributors = (select count(*) from SubDistributor)
+	set @count = 0
+	set @idNum = 300
+
+	while(@count < @totalSubDistributors)
+	begin
+		set @numChannels = 0
+		set @count += 1
+		set @idNum += 1
+		while(@numChannels < 3)
+		begin
+			insert into ChannelPartner values(@idNum)
+			set @numChannels += 1
+		end
+	end
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateZones
+as
+	declare @count int
+	declare @totalChannels int
+	declare @numZones int
+	declare @idNum int
+
+	set @totalChannels = (select count(*) from ChannelPartner)
+	set @count = 0
+	set @idNum = 399
+
+	while(@count < @totalChannels)
+	begin
+		set @numZones = 0
+		set @count += 1
+		set @idNum += 1
+		while(@numZones < 2)
+		begin
+			insert into Zone values(@idNum)
+			set @numZones += 1
 		end
 	end
 -----------------------------------------------------------------------------
