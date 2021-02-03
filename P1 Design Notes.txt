@@ -33,12 +33,29 @@ When a sale is made at the Store level, data is gathered about Customers.
 Unique ID: SSN, Passport No, Citizen ID No, etc.
 Name: First and Last
 Phone Number: (xxx)xxx-xxxx
-Email Address
-Street
-City
-State(if applicable)
-Zip Code
+Email Address: firstName.lastName[citizenId % 100]@email.com
 Country
+
+-----------------------------------------------------------------------------
+Functionality Brainstorm
+-----------------------------------------------------------------------------
+This will be a list of all the procedures, views, and whatever else might be
+necessary for the database to function. There will be no implementation here,
+this is strictly for jotting down ideas.
+
+Procedures
+-[DONE] Generate a specified number of products. The products generated can be based on a given
+ productId, category, type, all of these
+-Restock a store's inventory, given a specified storeId & quantity. If no storeId is given, then
+ restock all locations. 
+-
+
+Views
+-[DONE] View the entire transactional history of a given serial number OR every product ever made.
+-[DONE] View customer list with the country they live in.
+-[DONE] View detailed product information based on the serialnumber.
+-[DONE] View production house locations.
+-[DONE] View Production Log.
 
 -----------------------------------------------------------------------------
 Entities
@@ -115,6 +132,7 @@ StoreInventory
 	-price
 ChannelZoneStoreTransactions
 	-transactionId
+	-subDistributorId
 	-channelPartnerId
 	-zoneId
 	-storeId
@@ -147,15 +165,59 @@ join Continent on Country.continentId = Continent.continentId
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 create view DisplayProductionLog as
-select ProductionLog.productionLogId as [Log Number],
+select 
+		ProductionLog.productionLogId as [Log Number],
+		ProductionLog.serialNumber as [Serial Number],
+		ProductionLog.productId as [Item Number],
 		ProductionLog.productionHouseId as [Production House],
 		ProductionInventory.warehouseId as [Warehouse Number],
-		ProductionLog.productId as [Item Number],
-		ProductionLog.serialNumber as [Serial Number],
 		ProductionLog.dateOfProduction as [Date Produced]
 from ProductionLog
 join ProductionInventory on ProductionLog.serialNumber = ProductionInventory.serialNumber;
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplayProductHistory
+as
+select
+	plog.serialNumber as [Serial Number],
+	plog.productId as [Item Number],
+	productionHouseId as [Production House],
+	gdp.warehouseId as [Warehouse Number],
+	gdp.generalDistributorId as [General Distributor],
+	czst.subDistributorId as [Sub Distributor],
+	czst.channelPartnerId as [Channel Partner],
+	czst.storeId as [Store Number],
+	st.customerId as [Customer]
+from ProductionLog as plog
+full join GeneralDistributorPurchases as gdp on plog.serialNumber = gdp.serialNumber
+full join ChannelZoneStoreTransactions as czst on plog.serialNumber = czst.serialNumber
+full join StoreTransaction as st on plog.serialNumber = st.serialNumber
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view CustomerLocation
+as
+select 
+	concat(cu.firstName, ' ', cu.lastName) as [Customer],
+	cu.citizenId as [Citizen ID Number],
+	cn.countryName as [Country],
+	ct.continentName as [Continent]
+from Customer as cu
+join Country as cn on cu.countryId = cn.countryId
+join Continent as ct on cn.continentId = ct.continentId
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DetailProductInformation
+as
+select 
+	plog.serialNumber as [Serial Number],
+	plist.productName as [Name],
+	plist.productType as [Type],
+	plist.productCategory as [Category]
+from ProductionLog as plog
+join ProductList as plist on plog.productId = plist.productId
 -----------------------------------------------------------------------------
 Procedures
 -----------------------------------------------------------------------------
@@ -185,12 +247,14 @@ as
 create procedure proc_GenerateProducts @productToProduce int
 as
 	declare @storageWarehouse int
+	declare @country int
+	declare @productionPrice money
 
 	set @storageWarehouse = (select top 1 warehouseId from Warehouse order by newid())
+	set @country = (select countryId from Warehouse where warehouseId = @storageWarehouse)
+	set @productionPrice = (select basePrice from ProductList where productId = @productToProduce) * (select manufacturingTax from Country where countryId = @country)
 
-	insert into ProductionInventory values(@productToProduce, @storageWarehouse)
-
-	select * from ProductionInventory;
+	insert into ProductionInventory values(@productToProduce, @storageWarehouse, @productionPrice)
 	
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	
@@ -215,18 +279,16 @@ as
 	declare @warehouse int
 	declare @country int
 	declare @distributor int
-	declare @productNum int
 	declare @price money
 
 	set @warehouse = (select warehouseId from ProductionInventory where serialNumber = @serialNumber)
 	set @country = (select countryId from Warehouse where warehouseId = @warehouse)
 
 	set @distributor = (select generalDistributorId from GeneralDistributor where countryId = @country)
-	set @productNum = (select productId from ProductionInventory where serialNumber = @serialNumber);
-	set @price = (select basePrice from ProductList where productId = @productNum) * 1.08
+	set @price = (select productionPrice from ProductionInventory where serialNumber = @serialNumber) * 1.08
 
-	insert into GeneralDistributorInventory values(@serialNumber, @productNum, @distributor, @price);
-
+	insert into GeneralDistributorInventory values(@serialNumber, @distributor, @price);
+	
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 create procedure proc_GenerateSubDistributors
@@ -258,15 +320,13 @@ create procedure proc_GeneralDistributorToSubDistributor @serialNum bigint
 as
 	declare @generalDistributor int
 	declare @subDistributor int
-	declare @productNum int
 	declare @price money
 
 	set @generalDistributor = (select generalDistributorId from GeneralDistributorInventory where serialNumber = @serialNum)
 	set @subDistributor = (select top 1 subDistributorId from SubDistributor where generalDistributorId = @generalDistributor order by newid())
-	set @productNum = (select productId from ProductionLog where serialNumber = @serialnum)
 	set @price = (select generalDistributorPrice from GeneralDistributorInventory where serialNumber = @serialNum) * 1.08
 
-	insert into SubDistributorInventory values(@serialNum, @productNum, @subDistributor, @price)
+	insert into SubDistributorInventory values(@serialNum, @subDistributor, @price)
 	
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
 
@@ -317,6 +377,232 @@ as
 			set @numZones += 1
 		end
 	end
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateStores
+as
+	declare @count int
+	declare @totalZones int
+	declare @numStores int
+	declare @idNum int
+
+	set @totalZones = (select count(*) from Zone);
+	set @count = 0
+	set @idNum = 0
+
+	while(@count < @totalZones)
+	begin
+		set @numStores = 0
+		set @count += 1
+		set @idNum += 1
+		while(@numStores < 6)
+		begin
+			insert into Store values(@idNum)
+			set @numStores += 1
+		end
+	end
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
+	
+create procedure proc_SubDistributorToStore @serialNum bigint
+as
+	declare @subDistributor int
+	declare @channelPartner int
+	declare @zone int
+	declare @store int
+	declare @price money
+
+	set @subDistributor = (select subDistributorId from SubDistributorInventory where serialNumber = @serialNum)
+	set @channelPartner = (select top 1 channelPartnerId from ChannelPartner where subDistributorId = @subDistributor order by newid())
+	set @zone = (select top 1 zoneId from Zone where channelPartnerId = @channelPartner)
+	set @store = (select top 1 storeId from Store where zoneId = @zone order by newid())
+	set @price = (select price from SubDistributorInventory where serialNumber = @serialNum) * 1.08
+
+	insert into StoreInventory values(@serialnum, @store, @price)
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateCustomer @name nvarchar(50), @country int=null
+as
+	declare @id int
+	declare @email nvarchar(50)
+	declare @firstName nvarchar(25)
+	declare @lastName nvarchar(25)
+	declare @customerCountry int
+	if @country is null
+		set @customerCountry = (select top 1 countryId from Country order by newid())
+	else
+		set @customerCountry = @country
+
+	set @firstName = (select SUBSTRING(@name, 1, CHARINDEX(' ', @name) - 1))
+	set @lastName = (select SUBSTRING(@name, CHARINDEX(' ', @name) + 1, LEN(@name)))
+	set @email = NULL
+
+	insert into Customer values(@firstName, @lastName, @email, @customerCountry);
+	set @id = (select top 1 citizenId from Customer where firstName = @firstName and lastname = @lastName order by citizenId desc)
+	set @email = concat(@firstName, '.', @lastName, (@id % 100), '@apple.com')
+	update Customer set emailAddress = lower(@email) where citizenId = @id
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_CustomerPurchaseProduct @serialNum bigint, @customer int
+as
+	declare @store int = (select storeId from StoreInventory where serialNumber = @serialNum)
+	
+	insert into StoreTransaction values(@store, @customer, @serialNum, getdate())
+	delete from StoreInventory where serialNumber = @serialNum
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateOneProductFromQuantity @productNum int, @quantity int
+as
+	declare @count int = 0
+
+	while (@count < @quantity)
+	begin
+		exec proc_GenerateOneProduct @productNum
+		set @count += 1
+	end
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateProductsFromCategory @quantity int, @category nvarchar(20)
+as
+	declare @count int
+	declare @enum table (id int)
+
+	insert into @enum select productId from ProductList where productCategory = @category
+	declare @id int
+
+	while exists (select 1 from @enum)
+	begin
+		set @count = 0
+		select top 1 @id = id from @enum
+		while (@count < @quantity)
+		begin
+			exec proc_GenerateOneProduct @id
+			set @count += 1
+		end
+		delete from @enum where id = @id
+	end
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateProductsFromType @quantity int, @type nvarchar(20)
+as
+	declare @count int
+	declare @enum table (id int)
+
+	insert into @enum select productId from ProductList where productType = @type
+	declare @id int
+
+	while exists (select 1 from @enum)
+	begin
+		set @count = 0
+		select top 1 @id = id from @enum
+		while (@count < @quantity)
+		begin
+			exec proc_GenerateOneProduct @id
+			set @count += 1
+		end
+		delete from @enum where id = @id
+	end
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateProductsFromTypeCategory @quantity int, @type int, @category nvarchar(20)
+as
+	declare @count int
+	declare @enum table (id int)
+
+	insert into @enum select productId from ProductList where productCategory = @category and productType = @type
+	declare @id int
+
+	while exists (select 1 from @enum)
+	begin
+		set @count = 0
+		select top 1 @id = id from @enum
+		while (@count < @quantity)
+		begin
+			exec proc_GenerateOneProduct @id
+			set @count += 1
+		end
+		delete from @enum where id = @id
+	end
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_GenerateProductsFromQuantity @quantity int
+as
+	declare @count int
+	declare @enum table (id int)
+
+	insert into @enum select productId from ProductList
+	declare @id int
+
+	while exists (select 1 from @enum)
+	begin
+		set @count = 0
+		select top 1 @id = id from @enum
+		while (@count < @quantity)
+		begin
+			exec proc_GenerateOneProduct @id
+			set @count += 1
+		end
+		delete from @enum where id = @id
+	end
+	
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
+	
+create procedure proc_StockWarehouse @productNum int
+as
+	declare @numWarehouses int = 1
+	declare @totalWarehouses int = (select count(warehouseId) from Warehouse)
+	declare @basePrice money = (select basePrice from ProductList where productId = @productNum)
+	declare @tax money
+	while(@numWarehouses < @totalWarehouses)
+	begin
+		set @tax = (select manufacturingTax from Country where countryId = 
+			(select countryId from Warehouse where warehouseId = @numWarehouses))
+
+		while((select count(@productNum) from ProductionInventory where productId = @productNum and warehouseId = @numWarehouses) < 40)
+		begin
+			
+			insert into ProductionInventory values(@productNum, @numWarehouses, (@basePrice * @tax))
+		end
+		set @numWarehouses += 1
+	end
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_StockWarehouseController
+as
+	declare @totalProducts int = (select count(productId) from ProductList) + 100
+	declare @count int = 100
+
+	while (@count <= @totalProducts)
+	begin
+		exec proc_StockWarehouse @count
+		set @count += 1
+	end
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create procedure proc_ProductionToStore @numberOfProductsToMove int
+as
+	declare @count int = 0
+	while @count < @numberOfProductsToMove
+	begin
+		declare @serialNum int = (select top 1 serialNumber from ProductionInventory order by newid())
+
+		exec proc_ProductionToGeneralDistributor @serialNum
+		exec proc_GeneralDistributorToSubDistributor @serialNum
+		exec proc_SubDistributorToStore @serialnum
+
+		set @count += 1
+	end
 -----------------------------------------------------------------------------
 Triggers
 -----------------------------------------------------------------------------
@@ -328,6 +614,8 @@ after insert as
 	declare @storedAt int
 	declare @itemId int
 	declare @continent char(2)
+	declare @tax money
+	declare @productionPrice money
 
 	set @serialNum = (SELECT TOP 1 serialNumber FROM ProductionInventory ORDER BY serialNumber DESC)
 	set @itemId = (SELECT TOP 1 productId FROM ProductionInventory ORDER BY serialNumber DESC)
@@ -336,9 +624,11 @@ after insert as
 	set @storedAt = (select countryId from Warehouse where warehouseId = @storedAt) 
 	set @continent = (select continentId from Country where countryId = @storedAt)
 	set @producedAt = (select top 1 productionHouseId from ProductionHouse where continentId = @continent order by newid())
+	set @tax = (select manufacturingTax from Country where countryId = @storedAt)
+	set @productionPrice = (select basePrice from ProductList where productId = @itemId) * @tax
+	update ProductionInventory set productionPrice = @productionPrice where serialNumber = @serialNum
 
 	insert into ProductionLog values(@producedAt, @itemId, @serialNum, getdate());
-	
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 create trigger trg_LogGeneralDistributorPurchase
@@ -370,3 +660,23 @@ after insert as
 
 	insert into SubDistributorPurchases values(@subDistributor, @generalDistributor,@serialNum, getdate());
 	delete from GeneralDistributorInventory where serialNumber = @serialNum
+	
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create trigger trg_LogStorePurchase
+on StoreInventory
+after insert as
+	declare @serialNum int
+	declare @subDistributor int
+	declare @channelPartner int
+	declare @zone int
+	declare @store int
+	
+	set @serialNum = (select top 1 serialNumber from StoreInventory order by serialNumber desc)
+	set @store = (select storeId from StoreInventory where serialNumber = @serialNum)
+	set @zone = (select zoneId from Store where storeId = @store)
+	set @channelPartner = (select channelPartnerId from Zone where zoneId = @zone)
+	set @subDistributor = (select subDistributorId from ChannelPartner where channelPartnerId = @channelPartner)
+
+	insert into ChannelZoneStoreTransactions values(@subDistributor, @channelPartner, @zone, @store, @serialNum, getdate())
+	delete from SubDistributorInventory where serialNumber = @serialNum
