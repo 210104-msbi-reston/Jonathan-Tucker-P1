@@ -157,23 +157,20 @@ Customer
 Views
 -----------------------------------------------------------------------------
 create view ProductionHouseLocations as
-select ProductionHouse.productionHouseId as [Production House], Country.countryName as [Country], Continent.continentName as [Continent]
+select ProductionHouse.productionHouseId as [Production House], 
+		Continent.continentName as [Continent]
 from ProductionHouse
-join Country on ProductionHouse.countryId = Country.countryId
-join Continent on Country.continentId = Continent.continentId
-
+join Continent on ProductionHouse.continentId = Continent.continentId
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-create view DisplayProductionLog as
+alter view DisplayProductionLog as
 select 
 		ProductionLog.productionLogId as [Log Number],
 		ProductionLog.serialNumber as [Serial Number],
 		ProductionLog.productId as [Item Number],
 		ProductionLog.productionHouseId as [Production House],
-		ProductionInventory.warehouseId as [Warehouse Number],
 		ProductionLog.dateOfProduction as [Date Produced]
 from ProductionLog
-join ProductionInventory on ProductionLog.serialNumber = ProductionInventory.serialNumber;
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -218,6 +215,87 @@ select
 	plist.productCategory as [Category]
 from ProductionLog as plog
 join ProductList as plist on plog.productId = plist.productId
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplayProductionInventory
+as
+select serialNumber as [Serial Number],
+		productId as [Item Number],
+		warehouseId as [Warehouse],
+		productionPrice as [Price]
+from ProductionInventory
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplayGeneralDistributorInventory
+as
+select serialNumber as [Serial Number],
+		generalDistributorId as [General Distributor],
+		generalDistributorPrice as [Price]
+from GeneralDistributorInventory
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplaySubDistributorInventory
+as
+select serialNumber as [Serial Number],
+		subDistributorId as [Sub Distributor],
+		price as [Price]
+from SubDistributorInventory
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplayStoreInventory
+as
+select serialNumber as [Serial Number],
+		storeId as [Store Number],
+		storePrice [Retail Price]
+from StoreInventory
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplayStoreLocations
+as
+select 
+	Store.storeId as [Store Number],
+	Store.zoneId as [Zone],
+	Zone.channelPartnerId as [Channel Partner],
+	ChannelPartner.subDistributorId as [Sub Distributor],
+	SubDistributor.generalDistributorId as [General Distributor],
+	Country.countryName as [Country]
+from Store
+join Zone on Store.zoneId = Zone.zoneId
+join ChannelPartner on Zone.channelPartnerId = ChannelPartner.channelPartnerId
+join SubDistributor on ChannelPartner.subDistributorId = SubDistributor.subDistributorId
+join GeneralDistributor on SubDistributor.generalDistributorId = GeneralDistributor.generalDistributorId
+join Country on GeneralDistributor.countryId = Country.countryId
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplayWarehouseLocations
+as
+select 
+	Warehouse.warehouseId as [Warehouse Number],
+	Warehouse.countryId as [Country ID],
+	Country.countryName as [Country Name],
+	Continent.continentName as [Continent],
+	Country.manufacturingTax as [Manufacturing Tax]
+from Warehouse 
+join Country on Warehouse.countryId = Country.countryId
+join Continent on Country.continentId = Continent.continentId
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create view DisplayTotalProducts
+as
+select serialNumber from ProductionInventory
+union
+select serialNumber from GeneralDistributorInventory
+union
+select serialNumber from SubDistributorInventory
+union
+select serialnumber from StoreInventory
 -----------------------------------------------------------------------------
 Procedures
 -----------------------------------------------------------------------------
