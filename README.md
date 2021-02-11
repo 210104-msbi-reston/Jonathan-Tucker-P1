@@ -9,7 +9,8 @@ The goal of this project was to design a SQL database that emulates the distribu
 
 ## Features
 * Feature
-TO-DO List
+
+TO-DO List:
 * Todo
 
 ## Getting Started
