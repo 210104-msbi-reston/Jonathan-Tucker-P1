@@ -8,8 +8,8 @@ The goal of this project was to design a SQL database that emulates the distribu
 * Microsoft Excel 365
 
 ## Features
-* 
+* Feature
 TO-DO List
-* 
+* Todo
 
 ## Getting Started
