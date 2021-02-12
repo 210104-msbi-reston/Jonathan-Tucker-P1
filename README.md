@@ -47,6 +47,7 @@ Procedures to Generate Distribution Entities
   * exec proc_GenerateStores
 * Generate a Customer
   * exec proc_GenerateCustomer @name nvarchar(50), @country int=null
+  
 Procedures to Generate Products
 * Generate One Product of a Specific Type
   * exec proc_GenerateOneProduct @productToProduce int
