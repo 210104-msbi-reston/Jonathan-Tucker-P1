@@ -47,6 +47,8 @@ Procedures to Generate Distribution Entities
   * exec proc_GenerateStores
 * Generate a Customer
   * exec proc_GenerateCustomer @name nvarchar(50), @country int=null
+* Stock the Warehouses
+  * exec proc_StockWarehouseController 
   
 Procedures to Generate Products
 * Generate One Product of a Specific Type
@@ -61,6 +63,20 @@ Procedures to Generate Products
   * exec proc_GenerateProductsFromTypeCategory @quantity int, @type int, @category nvarchar(20)
 * Generate Multiple Products of Every Available Product
   * exec proc_GenerateProductsFromQuantity @quantity int
+  
+Procedures to Move Products
+* Move Product from Production House to General Distributor
+  * exec proc_ProductionToGeneralDistributor @serialNumber bigint
+* Move Product from General Distributor to Sub Distributor
+  * exec proc_GeneralDistributorToSubDistributor @serialNumber bigint
+* Move Product from Sub Distributor to Store
+  * exec proc_SubDistributorToStore @serialNumber bigint
+* Customer Purchases a Product
+  * exec proc_CustomerPurchaseProduct @serialNum bigint, @customer int
+* Move Product From Production House to Store
+  * exec proc_ProductionToStore @serialNum bigint
+    * Note: This procedure does not work as intended.
+
 ## Licenses
 * [SQL Server Management Studio](https://docs.microsoft.com/en-us/legal/sql/sql-server-management-studio-license-terms)
 * [Microsoft SSDT](https://docs.microsoft.com/en-us/legal/sql/sql-server-data-tools-license-terms)
